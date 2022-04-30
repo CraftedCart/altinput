@@ -6,7 +6,13 @@
 
 class keyboard : public base_input {
 	// TGM3 buttons
-	unsigned short buttons;
+	mutable unsigned short buttons;
+
+	// Buttons from the previous time buttons were fetched
+	// (Just ABCD buttons, not directional ones)
+	mutable unsigned short prev_buttons;
+
+	mutable unsigned short pending_release_buttons;
 
 	// Directional buttons from the previous update
 	unsigned short old_dir_buttons;
@@ -34,13 +40,21 @@ public:
 	void clear_buttons() override
 	{
 		buttons = 0;
+		prev_buttons = 0;
 		direction_keys.clear();
 	}
 
 	// buttons accessors
 	unsigned short get_buttons_1p() const override
 	{
-		return buttons;
+		unsigned short out_buttons = buttons;
+
+		prev_buttons = buttons;
+		buttons &= ~pending_release_buttons;
+
+		pending_release_buttons = 0;
+
+		return out_buttons;
 	}
 
 	unsigned short get_buttons_2p() const override

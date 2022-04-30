@@ -39,6 +39,8 @@ void keyboard::init(const config &cfg)
 	key_mask_map[start] = mask_start;
 
 	buttons = 0;
+	prev_buttons = 0;
+	pending_release_buttons = 0;
 }
 
 /**
@@ -57,9 +59,27 @@ void keyboard::update(const tagRAWINPUT *input)
 	const auto mask = key_mask_map[vkey];
 
 	buttons |= old_dir_buttons;
-	buttons = down ? (buttons | mask) : (buttons & ~mask);
 
-	const auto dir_buttons = buttons & (mask_up | mask_down | mask_left | mask_right);
+	const auto dir_mask = mask_up | mask_down | mask_left | mask_right;
+
+	if (down) {
+		buttons |= mask;
+	} else {
+		if (!(mask & dir_mask)) {
+			// If we happen to press and release a button in a timespan shorter than 1 frame, keep the button held down
+			// until the next frame so the game can recognize it
+			if (!(prev_buttons & mask)) {
+				pending_release_buttons |= mask;
+			} else {
+				buttons &= ~mask;
+			}
+		}
+		else {
+			buttons &= ~mask;
+		}
+	}
+
+	const auto dir_buttons = buttons & dir_mask;
 	buttons &= ~dir_buttons;
 
 	const auto changed = dir_buttons ^ old_dir_buttons;
@@ -75,9 +95,7 @@ void keyboard::update(const tagRAWINPUT *input)
 	}
 
 	if (direction_keys.size() != 0)
-		buttons |= direction_keys.front();
+	buttons |= direction_keys.front();
 
 	old_dir_buttons = dir_buttons;
-
-	return;
 }
