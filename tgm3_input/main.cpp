@@ -214,6 +214,14 @@ void hook_position_window(const char fullscreen)
 	ChangeDisplaySettingsEx(info.szDevice, &dev_mode, nullptr, CDS_FULLSCREEN, nullptr);
 }
 
+static void patch_ptr(unsigned int offset, unsigned int value) {
+	DWORD old_protect;
+	VirtualProtect((void*)(offset), 4, PAGE_READWRITE, &old_protect);
+
+	*((unsigned int*)offset) = value;
+
+	VirtualProtect((void*)(offset), 4, old_protect, &old_protect);
+}
 
 /**
  * hook_WinMain - Custom WinMain
@@ -250,6 +258,11 @@ int CALLBACK hook_WinMain(
 		setup_recording();
 
 	init_practice(cfg);
+
+	// Skip the legal screen
+	if (cfg.value_bool(true, "patches.skip_legal")) {
+		patch_ptr(0x00406758, 0x00406710);
+	}
 
 	// Call the original startup function
 	((void(*)())(0x42ED30))();
